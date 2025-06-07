@@ -1,14 +1,7 @@
 ### 
 ---
-<p align="center"> <img src="https://readme-typing-svg.herokuapp.com/?lines=Hello+there,+I'm+Draxler!&center=true&width=380&height=45"> 
+<p align="center"> <img src="https://readme-typing-svg.herokuapp.com/?lines=Hello+there,+I'm+Heng!&center=true&width=380&height=45"> 
 
-<p align="center"> ➥ 🔭 I’m currently working on myself!
-  
-
-<p align="center"> ➥ 🌱 I’m currently learning Python and C++.  
-  
-
-<p align="center"> ➥ ❓  I am in love with my balls
 
   
   
