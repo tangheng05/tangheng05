@@ -113,6 +113,26 @@ const MANIFESTS = {
   swiftpm: 'Package.swift', dockerfile: 'Dockerfile', compose: 'docker-compose.yml', composeAlt: 'compose.yaml', xcodegen: 'project.yml',
 };
 
+// GitHub's GraphQL API sometimes answers with a 502 page instead of JSON, so
+// retry a few times with a growing pause before giving up.
+async function graphql(token, login, query, variables, attempts = 4) {
+  for (let i = 1; ; i++) {
+    const res = await fetch('https://api.github.com/graphql', {
+      method: 'POST',
+      headers: { authorization: `bearer ${token}`, 'content-type': 'application/json', 'user-agent': `${login}-profile` },
+      body: JSON.stringify({ query, variables }),
+    });
+    const body = await res.text();
+    let json = null;
+    try { json = JSON.parse(body); } catch { /* an HTML error page */ }
+    if (res.ok && json && !json.errors) return json;
+    const reason = `${res.status} ${json?.errors ? JSON.stringify(json.errors) : body.slice(0, 200)}`;
+    if (i >= attempts) throw new Error(`GitHub API: ${reason}`);
+    console.warn(`GitHub API attempt ${i} failed (${reason.slice(0, 80)}), retrying`);
+    await new Promise((r) => setTimeout(r, 5000 * i));
+  }
+}
+
 async function fetchRepos(login, token) {
   const blobs = Object.entries(MANIFESTS)
     .map(([alias, file]) => `${alias}: object(expression: "HEAD:${file}") { ... on Blob { text } }`).join('\n');
@@ -134,13 +154,7 @@ async function fetchRepos(login, token) {
   const repos = [];
   let cursor = null;
   do {
-    const res = await fetch('https://api.github.com/graphql', {
-      method: 'POST',
-      headers: { authorization: `bearer ${token}`, 'content-type': 'application/json', 'user-agent': `${login}-profile` },
-      body: JSON.stringify({ query, variables: { login, cursor } }),
-    });
-    const json = await res.json();
-    if (!res.ok || json.errors) throw new Error(`GitHub API: ${res.status} ${JSON.stringify(json.errors ?? json)}`);
+    const json = await graphql(token, login, query, { login, cursor });
     const page = json.data.user.repositories;
     for (const r of page.nodes) {
       if (r.isArchived) continue;
