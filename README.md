@@ -3,6 +3,10 @@
 </p>
 
 <p align="center">
+  I like building software that feels simple on the surface and solid underneath.
+</p>
+
+<p align="center">
   <a href="https://heng.horizxon.tech"><img src="assets/link-website.svg" height="40" alt="Website: heng.horizxon.tech" /></a>
   &nbsp;
   <a href="https://checksen.horizxon.tech"><img src="assets/link-now.svg" height="40" alt="Now building: CheckSen" /></a>
