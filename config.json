@@ -52,7 +52,10 @@
     "max": 7
   },
   "stack": {
-    "ignore": [],
+    "ignore": [
+      "discord",
+      "telegram"
+    ],
     "always": [],
     "ignoreRepos": [
       "tangheng05"
