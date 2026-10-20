@@ -458,7 +458,7 @@ function stackCard(stack, theme) {
 ${text(s.title, { font: F.medium, size, x: x + tile / 2, y: y + tile + 17, fill: t.muted, anchor: 'middle' })}</g>`;
   }).join('');
   const body = `${cardFrame(W, H, t)}
-${cardHead(W, 'Tech stack', 'detected from repos', t)}
+${cardHead(W, 'Tech stack', 'tools I use most', t)}
 ${tiles}`;
   return svg(W, H, `Tech stack: ${stack.map((s) => s.title).join(', ')}`, cardStyle, body);
 }

@@ -23,7 +23,7 @@
 
 <p align="center">
   <picture><source media="(prefers-color-scheme: dark)" srcset="assets/languages-dark.svg" /><img src="assets/languages-light.svg" width="49%" alt="Most used languages across my public repos" /></picture>
-  <picture><source media="(prefers-color-scheme: dark)" srcset="assets/stack-dark.svg" /><img src="assets/stack-light.svg" width="49%" alt="Tech stack detected from my public repos" /></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="assets/stack-dark.svg" /><img src="assets/stack-light.svg" width="49%" alt="Tech stack: the tools and frameworks I use most" /></picture>
 </p>
 
 <br/>
