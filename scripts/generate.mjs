@@ -29,13 +29,22 @@ const THEMES = {
   dark: {
     bg: '#072E2E', surface: '#0B3B3A', line: '#155250', diamond: '#0A3634',
     text: '#F4EFE6', muted: '#9FB8B3', accent: '#5CC4B8', track: '#123F3D',
-    langs: ['#5CC4B8', '#F4EFE6', '#E9B872', '#E07A5F', '#8FB8DE', '#B9A3E3', '#2E9C92', '#5F7F7A'],
+    langs: { Rust: '#E07A5F', JavaScript: '#E9B872', TypeScript: '#8FB8DE', Python: '#F4EFE6', Swift: '#B9A3E3', Vue: '#5CC4B8', QML: '#2E9C92', Other: '#5F7F7A' },
+    langsExtra: ['#D98FB0', '#9CCB7A', '#7FC8C8', '#C7B08A'],
   },
   light: {
     bg: '#F3F8F6', surface: '#FFFFFF', line: '#D3E4DF', diamond: '#E6F0EC',
     text: '#072E2E', muted: '#4F6B67', accent: '#0E716B', track: '#E2EEEA',
-    langs: ['#0E716B', '#072E2E', '#B7802A', '#C0533A', '#3C6FA6', '#7A5EBF', '#3FA89D', '#9FB8B3'],
+    langs: { Rust: '#C0533A', JavaScript: '#B7802A', TypeScript: '#3C6FA6', Python: '#072E2E', Swift: '#7A5EBF', Vue: '#0E716B', QML: '#3FA89D', Other: '#9FB8B3' },
+    langsExtra: ['#B0577F', '#5E8F3A', '#2F8A8A', '#8A7247'],
   },
+};
+
+// Each language keeps the same colour every day; languages without one borrow
+// from `langsExtra` by rank.
+const langColor = (theme, name, rank) => {
+  const t = THEMES[theme];
+  return t.langs[name] ?? t.langsExtra[rank % t.langsExtra.length];
 };
 
 // ---------------------------------------------------------------- type
@@ -112,7 +121,7 @@ async function fetchRepos(login, token) {
       repositories(first: 50, after: $cursor, ownerAffiliations: OWNER, privacy: PUBLIC, isFork: false, orderBy: {field: PUSHED_AT, direction: DESC}) {
         pageInfo { hasNextPage endCursor }
         nodes {
-          name description url stargazerCount isArchived
+          name description url stargazerCount isArchived pushedAt
           primaryLanguage { name color }
           languages(first: 20, orderBy: {field: SIZE, direction: DESC}) { edges { size node { name color } } }
           repositoryTopics(first: 20) { nodes { topic { name } } }
@@ -138,7 +147,7 @@ async function fetchRepos(login, token) {
       const files = {};
       for (const [alias, file] of Object.entries(MANIFESTS)) if (r[alias]?.text) files[file] = r[alias].text;
       repos.push({
-        name: r.name, description: r.description, url: r.url, stars: r.stargazerCount,
+        name: r.name, description: r.description, url: r.url, stars: r.stargazerCount, pushedAt: r.pushedAt,
         primaryLanguage: r.primaryLanguage,
         languages: r.languages.edges.map((e) => ({ name: e.node.name, color: e.node.color, size: e.size })),
         topics: r.repositoryTopics.nodes.map((n) => n.topic.name),
@@ -154,17 +163,20 @@ async function fetchRepos(login, token) {
 // ---------------------------------------------------------------- analysis
 
 // Ranks languages by sqrt(bytes) * sqrt(repos), so one huge repo can't drown out
-// a language used across many projects.
+// a language used across many projects. Each repo's weight halves every
+// `halfLifeYears` since its last push, so the card shows what I use now.
 function rankLanguages(repos) {
-  const { ignore = [], ignoreRepos = [], max = 7 } = config.languages;
+  const { ignore = [], ignoreRepos = [], max = 7, halfLifeYears = 2 } = config.languages;
   const acc = new Map();
   for (const repo of repos) {
     if (ignoreRepos.includes(repo.name)) continue;
+    const ageYears = repo.pushedAt ? (Date.now() - Date.parse(repo.pushedAt)) / 3.156e10 : 0;
+    const weight = 0.5 ** (Math.max(ageYears, 0) / halfLifeYears);
     for (const { name, size } of repo.languages) {
       if (ignore.includes(name)) continue;
       const e = acc.get(name) ?? { name, bytes: 0, repos: 0 };
-      e.bytes += size;
-      e.repos += 1;
+      e.bytes += size * weight;
+      e.repos += weight;
       acc.set(name, e);
     }
   }
@@ -361,7 +373,6 @@ ${answerLines}</g>`;
 
 function footer() {
   const W = 1200, H = 150, B = BANNER;
-  const handleW = measure(config.handle, F.mono, 18);
   // A slow wave along the bottom edge, two periods wide so it can loop seamlessly.
   const period = 240, amp = 7, base = H - 26;
   let d = `M${-period} ${base}`;
@@ -392,9 +403,30 @@ ${diamondPattern('dia', B.diamond)}
 ${text(config.footer.title, { font: F.heading, size: 38, x: 72, y: 72, fill: B.cream })}
 ${text(config.footer.subtitle, { font: F.medium, size: 17, x: 72, y: 104, fill: B.muted })}
 ${text(config.handle, { font: F.mono, size: 18, x: 1128 - 14, y: 72, fill: B.mint, anchor: 'end' })}
-<rect class="caret" x="${1128 - 9}" y="58" width="9" height="18" rx="2" fill="${B.mint}"/>
-<desc>${esc(config.handle)} is ${handleW.toFixed(0)}px wide.</desc>`;
+<rect class="caret" x="${1128 - 9}" y="58" width="9" height="18" rx="2" fill="${B.mint}"/>`;
   return svg(W, H, `${config.footer.title} ${config.footer.subtitle}`, style, body);
+}
+
+// ---------------------------------------------------------------- link chips
+
+// A pill-shaped link button. `icon` is "globe" or "live" (a pulsing dot).
+function linkChip({ label, text: value, icon }) {
+  const B = BANNER, H = 40, size = 15;
+  const labelW = label ? measure(label, F.medium, size) + 8 : 0;
+  const valueW = measure(value, F.semibold, size);
+  const W = Math.ceil(44 + labelW + valueW + 20);
+  const cy = H / 2;
+  const glyph = icon === 'live'
+    ? `<circle class="ring" cx="24" cy="${cy}" r="5" fill="${B.mint}"/><circle cx="24" cy="${cy}" r="5" fill="${B.mint}"/>`
+    : `<g fill="none" stroke="${B.mint}" stroke-width="1.6"><circle cx="24" cy="${cy}" r="8"/><ellipse cx="24" cy="${cy}" rx="3.6" ry="8"/><path d="M16 ${cy} h16"/></g>`;
+  const style = `
+    .ring { transform-box: fill-box; transform-origin: center; animation: ring 2s ease-out infinite; }
+    @keyframes ring { from { transform: scale(1); opacity: .6; } to { transform: scale(2.6); opacity: 0; } }`;
+  const body = `<rect x=".5" y=".5" width="${W - 1}" height="${H - 1}" rx="${H / 2}" fill="${B.bg}" stroke="#155250"/>
+${glyph}
+${label ? text(label, { font: F.medium, size, x: 42, y: cy + 5.5, fill: B.muted }) : ''}
+${text(value, { font: F.semibold, size, x: 42 + labelW, y: cy + 5.5, fill: B.cream })}`;
+  return svg(W, H, label ? `${label} ${value}` : value, icon === 'live' ? style : '', body);
 }
 
 // ---------------------------------------------------------------- cards
@@ -412,7 +444,7 @@ const cardStyle = `
 
 function languagesCard(langs, repoCount, theme) {
   const t = THEMES[theme], W = 480, H = 328;
-  const colorOf = (i, name) => (name === 'Other' ? t.langs[7] : t.langs[i % 7]);
+  const colorOf = (i, name) => langColor(theme, name, i);
   const barX = 28, barW = W - 56, barY = 78, barH = 12;
   let x = barX;
   const segs = langs.map((l, i) => {
@@ -510,6 +542,7 @@ async function main() {
   };
   write('header.svg', header());
   write('footer.svg', footer());
+  for (const link of config.links) write(`link-${link.id}.svg`, linkChip(link));
   for (const theme of Object.keys(THEMES)) {
     write(`languages-${theme}.svg`, languagesCard(langs, counted, theme));
     write(`stack-${theme}.svg`, stackCard(stack, theme));
@@ -517,7 +550,7 @@ async function main() {
       const repo = repos.find((r) => r.name === entry.repo);
       if (!repo) throw new Error(`Featured repo "${entry.repo}" is not a public, non-fork repo of ${config.login}.`);
       const i = langs.findIndex((l) => l.name === repo.primaryLanguage?.name);
-      const color = i > -1 ? THEMES[theme].langs[i % 7] : THEMES[theme].muted;
+      const color = repo.primaryLanguage ? langColor(theme, repo.primaryLanguage.name, Math.max(i, 0)) : THEMES[theme].muted;
       write(`featured-${entry.repo}-${theme}.svg`, featuredCard(entry, repo, color, theme));
     }
   }

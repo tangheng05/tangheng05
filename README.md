@@ -1,15 +1,11 @@
 <p align="center">
-  <img src="assets/header.svg" width="100%" alt="Tang Heng. Software engineer and founder, based in Cambodia. I build products, end to end." />
+  <img src="assets/header.svg" width="100%" alt="Tang Heng. Software engineer based in Cambodia. I build products, end to end." />
 </p>
 
 <p align="center">
-  Software engineer and founder of <b>Horizxon Limited</b>.<br/>
-  I build products end to end, from the systems behind the scenes to the apps people use every day.
-</p>
-
-<p align="center">
-  <a href="https://heng.horizxon.tech"><img src="https://img.shields.io/badge/heng.horizxon.tech-072E2E?style=for-the-badge&logo=googlechrome&logoColor=5CC4B8" alt="Website: heng.horizxon.tech" /></a>
-  <a href="https://checksen.horizxon.tech"><img src="https://img.shields.io/badge/Now_building-CheckSen-0E716B?style=for-the-badge&labelColor=072E2E" alt="Now building: CheckSen" /></a>
+  <a href="https://heng.horizxon.tech"><img src="assets/link-website.svg" height="40" alt="Website: heng.horizxon.tech" /></a>
+  &nbsp;
+  <a href="https://checksen.horizxon.tech"><img src="assets/link-now.svg" height="40" alt="Now building: CheckSen" /></a>
 </p>
 
 <br/>

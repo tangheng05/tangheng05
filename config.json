@@ -3,19 +3,34 @@
   "name": "Tang Heng",
   "handle": "~/tangheng05",
   "roles": [
-    "Software engineer & founder",
+    "Software engineer",
     "I turn ideas into real products",
     "Based in Cambodia"
   ],
   "chat": {
     "question": "So, what do you do?",
     "answerTitle": "I build products, end to end",
-    "answer": "From the systems behind the scenes to the apps people use every day. Fast, secure and simple to use."
+    "answer": "From the systems behind the scenes to the apps people use every day."
   },
   "footer": {
     "title": "Thanks for stopping by.",
     "subtitle": "heng.horizxon.tech  ·  Cambodia"
   },
+  "links": [
+    {
+      "id": "website",
+      "text": "heng.horizxon.tech",
+      "url": "https://heng.horizxon.tech",
+      "icon": "globe"
+    },
+    {
+      "id": "now",
+      "label": "Now building",
+      "text": "CheckSen",
+      "url": "https://checksen.horizxon.tech",
+      "icon": "live"
+    }
+  ],
   "featured": [
     {
       "repo": "checksen",
@@ -47,9 +62,11 @@
       "Jupyter Notebook"
     ],
     "ignoreRepos": [
-      "tangheng05"
+      "tangheng05",
+      "homebrew-tap"
     ],
-    "max": 7
+    "max": 7,
+    "halfLifeYears": 2
   },
   "stack": {
     "ignore": [
