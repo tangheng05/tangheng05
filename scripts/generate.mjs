@@ -373,7 +373,7 @@ ${a.lines.map((l, i) => text(l, { font: F.body, size: bodySize, x: aX + pad, y: 
 
   // The conversation: the question pops in, then dots type each answer in turn.
   // With one answer it plays once and stays; with more it loops every `turn` seconds.
-  const start = 1.5, typing = 1.3, turn = 6, cycle = turn * answers.length;
+  const start = 1.5, typing = 1.3, turn = 10, cycle = turn * answers.length;
   const at = (sec) => `${((sec / cycle) * 100).toFixed(2)}%`;
   let chatStyle;
   if (answers.length === 1) {
