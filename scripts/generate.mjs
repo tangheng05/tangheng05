@@ -6,7 +6,7 @@
 // Every SVG is self-contained: text is converted to paths at build time, so the
 // graphics look the same everywhere and never load fonts or call other services.
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -298,47 +298,58 @@ function detectStack(repos) {
 
 // ---------------------------------------------------------------- header
 
+// The banner shows at roughly 0.47x on a profile page, so no text here is set
+// below 22px; that keeps it at about 11px on screen.
 function header() {
-  const W = 1200, H = 320, B = BANNER;
-  const roles = config.roles.map((r, i) => `<g class="role r${i}">${text(r, { font: F.medium, size: 26, x: 72, y: 246, fill: B.muted })}</g>`).join('');
-  const handleW = measure(config.handle, F.mono, 20);
+  const W = 1200, H = 300, B = BANNER;
+  const roles = config.roles.map((r, i) => `<g class="role r${i}">${text(r, { font: F.medium, size: 28, x: 72, y: 236, fill: B.muted })}</g>`).join('');
+  const handleW = measure(config.handle, F.mono, 22);
+  const nameSize = 94;
 
   // Chat bubbles on the right, in the style of the CheckSen banner.
-  const right = 1128;
-  const qSize = 19, qW = measure(config.chat.question, F.medium, qSize);
-  const q = { w: qW + 44, h: 52 };
-  const qx = right - q.w, qy = 52;
+  const right = 1136;
+  const qSize = 24, qW = measure(config.chat.question, F.medium, qSize);
+  const q = { w: qW + 52, h: 58 };
+  const qx = right - q.w;
 
-  const aW = 420, aX = right - aW - 24, aY = qy + q.h + 18;
-  const lines = wrap(config.chat.answer, F.body, 18, aW - 48);
-  const aH = 30 + 30 + lines.length * 28 + 6;
+  const titleSize = 26, bodySize = 24, lineH = 34, pad = 28, checkW = 38;
+  const titleW = checkW + measure(config.chat.answerTitle, F.heading, titleSize);
+  const bodyW = measure(config.chat.answer, F.body, bodySize);
+  // Keep the answer on one line when it fits beside the name; otherwise wrap it.
+  const aW = Math.min(Math.max(titleW, bodyW), 500) + pad * 2;
+  const lines = wrap(config.chat.answer, F.body, bodySize, aW - pad * 2, 2);
+  const aH = 50 + lines.length * lineH + 14;
+  const qy = Math.round((H - (q.h + 16 + aH)) / 2);  // centre the conversation vertically
+  const aX = right - aW - 24, aY = qy + q.h + 16;
+  const nameRight = 68 + measure(config.name, F.display, nameSize, -0.02);
+  if (nameRight > aX - 40) throw new Error(`Header: the name and the answer bubble overlap (${nameRight.toFixed(0)} > ${aX - 40}).`);
+  if (aY + aH > H - 24) throw new Error('Header: the answer bubble is too tall; shorten chat.answer.');
+
   const bubble = (x, y, w, h, tail) => {
     // Rounded rect with one tighter corner, like a chat bubble's tail.
-    const r = 20, t = 6;
+    const r = 22, t = 6;
     const [tl, tr, br, bl] = tail === 'right' ? [r, r, t, r] : [r, r, r, t];
     return `M${x + tl},${y} H${x + w - tr} Q${x + w},${y} ${x + w},${y + tr} V${y + h - br} Q${x + w},${y + h} ${x + w - br},${y + h} H${x + bl} Q${x},${y + h} ${x},${y + h - bl} V${y + tl} Q${x},${y} ${x + tl},${y} Z`;
   };
-  const typingY = aY;
-  const answerLines = lines.map((l, i) => text(l, { font: F.body, size: 18, x: aX + 24, y: aY + 66 + i * 28, fill: B.ink })).join('');
+  const answerLines = lines.map((l, i) => text(l, { font: F.body, size: bodySize, x: aX + pad, y: aY + 50 + (i + 1) * lineH - 4, fill: B.ink })).join('');
 
+  // One orchestrated moment (the chat), plus the role line. Everything else is still.
   const style = `
-    .drift { animation: drift 24s linear infinite; }
+    .drift { animation: drift 90s linear infinite; }
     @keyframes drift { to { transform: translate(56px, -56px); } }
-    .glow { animation: glow 6s ease-in-out infinite alternate; }
-    @keyframes glow { from { opacity: .55; } to { opacity: 1; } }
     .up { animation: up .9s cubic-bezier(.2,.7,.2,1) both; }
-    .d1 { animation-delay: .15s; } .d2 { animation-delay: .3s; }
-    @keyframes up { from { opacity: 0; transform: translateY(16px); } }
-    .caret { animation: blink 1.1s steps(1) infinite; }
+    .d1 { animation-delay: .12s; } .d2 { animation-delay: .24s; }
+    @keyframes up { from { opacity: 0; transform: translateY(14px); } }
+    .caret { animation: blink 1.1s steps(1) 4; }
     @keyframes blink { 50% { opacity: 0; } }
     .role { opacity: 0; animation: role 12s ease-in-out infinite both; }
-    .r0 { opacity: 1; animation-delay: .3s; } .r1 { animation-delay: 4.3s; } .r2 { animation-delay: 8.3s; }
-    @keyframes role { 0% { opacity: 0; transform: translateY(10px); } 4%, 29% { opacity: 1; transform: none; } 33%, 100% { opacity: 0; transform: translateY(-10px); } }
-    .pop { transform-box: fill-box; animation: pop .6s cubic-bezier(.2,.9,.3,1.2) both; }
-    .q { transform-origin: right bottom; animation-delay: 1s; }
-    .a { transform-origin: left bottom; animation-delay: 3.1s; }
-    @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.94); } }
-    .typing { opacity: 0; animation: typing 1.5s 1.6s both; }
+    .r0 { opacity: 1; animation-delay: .24s; } .r1 { animation-delay: 4.24s; } .r2 { animation-delay: 8.24s; }
+    @keyframes role { 0% { opacity: 0; transform: translateY(8px); } 4%, 29% { opacity: 1; transform: none; } 33%, 100% { opacity: 0; transform: translateY(-8px); } }
+    .pop { transform-box: fill-box; animation: pop .55s cubic-bezier(.2,.9,.3,1.15) both; }
+    .q { transform-origin: right bottom; animation-delay: .9s; }
+    .a { transform-origin: left bottom; animation-delay: 2.9s; }
+    @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.95); } }
+    .typing { opacity: 0; animation: typing 1.4s 1.5s both; }
     @keyframes typing { 0% { opacity: 0; } 15%, 85% { opacity: 1; } 100% { opacity: 0; } }
     .dot { transform-box: fill-box; transform-origin: center; animation: bounce .9s ease-in-out infinite; }
     .dot:nth-child(2) { animation-delay: .15s; } .dot:nth-child(3) { animation-delay: .3s; }
@@ -346,176 +357,74 @@ function header() {
 
   const body = `<defs>
 ${diamondPattern('dia', B.diamond)}
-<clipPath id="card"><rect width="${W}" height="${H}" rx="24"/></clipPath>
-<radialGradient id="g1" cx="0.82" cy="0.1" r="0.55"><stop offset="0" stop-color="${B.mint}" stop-opacity=".22"/><stop offset="1" stop-color="${B.mint}" stop-opacity="0"/></radialGradient>
-<linearGradient id="fade" x1="0" x2="1"><stop offset="0" stop-color="${B.bg}" stop-opacity=".85"/><stop offset=".55" stop-color="${B.bg}" stop-opacity="0"/></linearGradient>
-</defs>
-<g clip-path="url(#card)">
-<rect width="${W}" height="${H}" fill="${B.bg}"/>
-<g class="drift"><rect x="-112" y="-56" width="${W + 224}" height="${H + 168}" fill="url(#dia)"/></g>
-<rect width="${W}" height="${H}" fill="url(#fade)"/>
-<rect class="glow" width="${W}" height="${H}" fill="url(#g1)"/>
-</g>
-<g class="up">${text(config.handle, { font: F.mono, size: 20, x: 72, y: 92, fill: B.mint })}<rect class="caret" x="${72 + handleW + 4}" y="76" width="10" height="20" rx="2" fill="${B.mint}"/></g>
-<g class="up d1">${text(config.name, { font: F.display, size: 104, x: 68, y: 196, fill: B.cream, ls: -0.02 })}</g>
-<g class="up d2">${roles}</g>
-<path class="pop q" d="${bubble(qx, qy, q.w, q.h, 'right')}" fill="${B.bubbleIn}"/>
-<g class="pop q">${text(config.chat.question, { font: F.medium, size: qSize, x: qx + 22, y: qy + 33, fill: B.ink })}</g>
-<g class="typing"><path d="${bubble(aX, typingY, 84, 48, 'left')}" fill="${B.bubbleOut}"/><g>${[0, 1, 2].map((i) => `<circle class="dot" cx="${aX + 26 + i * 16}" cy="${typingY + 24}" r="5" fill="${B.teal}"/>`).join('')}</g></g>
-<g class="pop a"><path d="${bubble(aX, aY, aW, aH, 'left')}" fill="${B.bubbleOut}"/>
-<circle cx="${aX + 33}" cy="${aY + 33}" r="8" fill="${B.mint}"/><path d="M${aX + 29} ${aY + 33.5} l3 3 l5.5 -6" fill="none" stroke="${B.ink}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-${text(config.chat.answerTitle, { font: F.heading, size: 20, x: aX + 50, y: aY + 40, fill: B.teal })}
-${answerLines}</g>`;
-  return svg(W, H, `${config.name}: ${config.roles.join(', ')}`, style, body);
-}
-
-// ---------------------------------------------------------------- footer
-
-function footer() {
-  const W = 1200, H = 150, B = BANNER;
-  // A slow wave along the bottom edge, two periods wide so it can loop seamlessly.
-  const period = 240, amp = 7, base = H - 26;
-  let d = `M${-period} ${base}`;
-  for (let x = -period; x < W + period; x += period / 2) {
-    const dir = ((x + period) / (period / 2)) % 2 === 0 ? -1 : 1;
-    d += ` Q${x + period / 4} ${base + dir * amp * 2} ${x + period / 2} ${base}`;
-  }
-  const style = `
-    .drift { animation: drift 24s linear infinite; }
-    @keyframes drift { to { transform: translate(56px, -56px); } }
-    .wave { animation: wave 9s linear infinite; }
-    @keyframes wave { to { transform: translateX(${period}px); } }
-    .caret { animation: blink 1.1s steps(1) infinite; }
-    @keyframes blink { 50% { opacity: 0; } }`;
-  const body = `<defs>
-${diamondPattern('dia', B.diamond)}
-<clipPath id="card"><rect width="${W}" height="${H}" rx="24"/></clipPath>
-<radialGradient id="g1" cx="0.1" cy="0.9" r="0.6"><stop offset="0" stop-color="${B.mint}" stop-opacity=".18"/><stop offset="1" stop-color="${B.mint}" stop-opacity="0"/></radialGradient>
-<linearGradient id="fade" x1="0" x2="1"><stop offset="0" stop-color="${B.bg}" stop-opacity=".85"/><stop offset=".6" stop-color="${B.bg}" stop-opacity="0"/></linearGradient>
+<clipPath id="card"><rect width="${W}" height="${H}" rx="28"/></clipPath>
+<radialGradient id="g1" cx="0.85" cy="0.05" r="0.6"><stop offset="0" stop-color="${B.mint}" stop-opacity=".16"/><stop offset="1" stop-color="${B.mint}" stop-opacity="0"/></radialGradient>
+<linearGradient id="fade" x1="0" x2="1"><stop offset="0" stop-color="${B.bg}" stop-opacity=".9"/><stop offset=".55" stop-color="${B.bg}" stop-opacity="0"/></linearGradient>
 </defs>
 <g clip-path="url(#card)">
 <rect width="${W}" height="${H}" fill="${B.bg}"/>
 <g class="drift"><rect x="-112" y="-56" width="${W + 224}" height="${H + 168}" fill="url(#dia)"/></g>
 <rect width="${W}" height="${H}" fill="url(#fade)"/>
 <rect width="${W}" height="${H}" fill="url(#g1)"/>
-<path class="wave" d="${d}" fill="none" stroke="${B.mint}" stroke-opacity=".45" stroke-width="2"/>
 </g>
-${text(config.footer.title, { font: F.heading, size: 38, x: 72, y: 72, fill: B.cream })}
-${text(config.footer.subtitle, { font: F.medium, size: 17, x: 72, y: 104, fill: B.muted })}
-${text(config.handle, { font: F.mono, size: 18, x: 1128 - 14, y: 72, fill: B.mint, anchor: 'end' })}
-<rect class="caret" x="${1128 - 9}" y="58" width="9" height="18" rx="2" fill="${B.mint}"/>`;
-  return svg(W, H, `${config.footer.title} ${config.footer.subtitle}`, style, body);
+<g class="up">${text(config.handle, { font: F.mono, size: 22, x: 72, y: 88, fill: B.mint })}<rect class="caret" x="${72 + handleW + 5}" y="70" width="11" height="22" rx="2" fill="${B.mint}"/></g>
+<g class="up d1">${text(config.name, { font: F.display, size: nameSize, x: 68, y: 182, fill: B.cream, ls: -0.02 })}</g>
+<g class="up d2">${roles}</g>
+<path class="pop q" d="${bubble(qx, qy, q.w, q.h, 'right')}" fill="${B.bubbleIn}"/>
+<g class="pop q">${text(config.chat.question, { font: F.medium, size: qSize, x: qx + 26, y: qy + 37, fill: B.ink })}</g>
+<g class="typing"><path d="${bubble(aX, aY, 96, 54, 'left')}" fill="${B.bubbleOut}"/><g>${[0, 1, 2].map((i) => `<circle class="dot" cx="${aX + 30 + i * 18}" cy="${aY + 27}" r="6" fill="${B.teal}"/>`).join('')}</g></g>
+<g class="pop a"><path d="${bubble(aX, aY, aW, aH, 'left')}" fill="${B.bubbleOut}"/>
+<circle cx="${aX + pad + 11}" cy="${aY + 38}" r="11" fill="${B.mint}"/><path d="M${aX + pad + 6} ${aY + 38.5} l4 4 l7 -8" fill="none" stroke="${B.ink}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+${text(config.chat.answerTitle, { font: F.heading, size: titleSize, x: aX + pad + checkW, y: aY + 47, fill: B.teal })}
+${answerLines}</g>`;
+  return svg(W, H, `${config.name}. ${config.roles.join('. ')}. ${config.chat.answerTitle}. ${config.chat.answer}`, style, body);
 }
 
-// ---------------------------------------------------------------- link chips
+// ---------------------------------------------------------------- toolbox
 
-// A pill-shaped link button. `icon` is "globe" or "live" (a pulsing dot).
-function linkChip({ label, text: value, icon }) {
-  const B = BANNER, H = 40, size = 15;
-  const labelW = label ? measure(label, F.medium, size) + 8 : 0;
-  const valueW = measure(value, F.semibold, size);
-  const W = Math.ceil(44 + labelW + valueW + 20);
-  const cy = H / 2;
-  const glyph = icon === 'live'
-    ? `<circle class="ring" cx="24" cy="${cy}" r="5" fill="${B.mint}"/><circle cx="24" cy="${cy}" r="5" fill="${B.mint}"/>`
-    : `<g fill="none" stroke="${B.mint}" stroke-width="1.6"><circle cx="24" cy="${cy}" r="8"/><ellipse cx="24" cy="${cy}" rx="3.6" ry="8"/><path d="M16 ${cy} h16"/></g>`;
-  const style = `
-    .ring { transform-box: fill-box; transform-origin: center; animation: ring 2s ease-out infinite; }
-    @keyframes ring { from { transform: scale(1); opacity: .6; } to { transform: scale(2.6); opacity: 0; } }`;
-  const body = `<rect x=".5" y=".5" width="${W - 1}" height="${H - 1}" rx="${H / 2}" fill="${B.bg}" stroke="#155250"/>
-${glyph}
-${label ? text(label, { font: F.medium, size, x: 42, y: cy + 5.5, fill: B.muted }) : ''}
-${text(value, { font: F.semibold, size, x: 42 + labelW, y: cy + 5.5, fill: B.cream })}`;
-  return svg(W, H, label ? `${label} ${value}` : value, icon === 'live' ? style : '', body);
-}
-
-// ---------------------------------------------------------------- cards
-
-const cardFrame = (W, H, t) => `<rect x=".5" y=".5" width="${W - 1}" height="${H - 1}" rx="18" fill="${t.surface}" stroke="${t.line}"/>`;
-const cardHead = (W, title, meta, t) =>
-  text(title, { font: F.heading, size: 24, x: 28, y: 50, fill: t.text })
-  + text(meta, { font: F.mono, size: 13, x: W - 28, y: 48, fill: t.muted, anchor: 'end' });
-
-const cardStyle = `
-  .grow { transform-box: fill-box; transform-origin: left center; animation: grow 1s cubic-bezier(.2,.7,.2,1) both; }
-  @keyframes grow { from { transform: scaleX(0); } }
-  .up { animation: up .7s cubic-bezier(.2,.7,.2,1) both; }
-  @keyframes up { from { opacity: 0; transform: translateY(8px); } }`;
-
-function languagesCard(langs, repoCount, theme) {
-  const t = THEMES[theme], W = 480, H = 328;
+// Languages on the left, tools on the right, in one card. Shown at ~0.47x like
+// the header, so text stays at 24px or more in this canvas.
+function toolboxCard(langs, stack, theme) {
+  const t = THEMES[theme], W = 1200, H = 300, colW = 504, leftX = 48, rightX = 648;
   const colorOf = (i, name) => langColor(theme, name, i);
-  const barX = 28, barW = W - 56, barY = 78, barH = 12;
-  let x = barX;
+
+  const barY = 104, barH = 18;
+  let x = leftX;
   const segs = langs.map((l, i) => {
-    const w = (l.pct / 100) * barW;
-    const seg = `<rect class="grow" style="animation-delay:${(i * 0.08).toFixed(2)}s" x="${x.toFixed(2)}" y="${barY}" width="${Math.max(w - 2, 1).toFixed(2)}" height="${barH}" fill="${colorOf(i, l.name)}"/>`;
+    const w = (l.pct / 100) * colW;
+    const seg = `<rect class="grow" style="animation-delay:${(i * 0.08).toFixed(2)}s" x="${x.toFixed(2)}" y="${barY}" width="${Math.max(w - 3, 1).toFixed(2)}" height="${barH}" fill="${colorOf(i, l.name)}"/>`;
     x += w;
     return seg;
   }).join('');
-  const maxPct = Math.max(...langs.map((l) => l.pct));
-  const colW = (barW - 32) / 2;
-  const rows = langs.map((l, i) => {
-    const cx = barX + (i % 2) * (colW + 32);
-    const y = 136 + Math.floor(i / 2) * 50;
-    const delay = (0.3 + i * 0.07).toFixed(2);
-    const track = `<rect x="${cx}" y="${y + 12}" width="${colW}" height="4" rx="2" fill="${t.track}"/>`
-      + `<rect class="grow" style="animation-delay:${delay}s" x="${cx}" y="${y + 12}" width="${((l.pct / maxPct) * colW).toFixed(2)}" height="4" rx="2" fill="${colorOf(i, l.name)}"/>`;
-    return `<g class="up" style="animation-delay:${delay}s">
-<circle cx="${cx + 5}" cy="${y - 5}" r="5" fill="${colorOf(i, l.name)}"/>
-${text(l.name, { font: F.medium, size: 15, x: cx + 18, y, fill: t.text })}
-${text(`${l.pct.toFixed(1)}%`, { font: F.mono, size: 13, x: cx + colW, y, fill: t.muted, anchor: 'end' })}
-${track}</g>`;
+  const legendColW = (colW - 24) / 2;
+  const legend = langs.slice(0, 6).map((l, i) => {
+    const cx = leftX + (i % 2) * (legendColW + 24), y = 176 + Math.floor(i / 2) * 42;
+    return `<circle cx="${cx + 7}" cy="${y - 8}" r="7" fill="${colorOf(i, l.name)}"/>
+${text(l.name, { font: F.medium, size: 25, x: cx + 26, y, fill: t.text })}
+${text(`${l.pct.toFixed(1)}%`, { font: F.mono, size: 23, x: cx + 26 + measure(l.name, F.medium, 25) + 12, y, fill: t.muted })}`;
   }).join('');
-  const body = `${cardFrame(W, H, t)}
-${cardHead(W, 'Languages', `${repoCount} public repos`, t)}
-<clipPath id="bar"><rect x="${barX}" y="${barY}" width="${barW}" height="${barH}" rx="${barH / 2}"/></clipPath>
-<rect x="${barX}" y="${barY}" width="${barW}" height="${barH}" rx="${barH / 2}" fill="${t.track}"/>
+
+  const cols = 7, tile = 60, gap = (colW - cols * tile) / (cols - 1), iconSize = 30;
+  const tiles = stack.slice(0, cols * 2).map((s, i) => {
+    const tx = rightX + (i % cols) * (tile + gap), ty = 104 + Math.floor(i / cols) * (tile + 18);
+    return `<g><title>${esc(s.title)}</title><rect x="${tx}" y="${ty}" width="${tile}" height="${tile}" rx="16" fill="${t.bg}" stroke="${t.line}" stroke-width="2"/>
+<path transform="translate(${tx + (tile - iconSize) / 2} ${ty + (tile - iconSize) / 2}) scale(${(iconSize / 24).toFixed(4)})" d="${s.path}" fill="${t.text}"/></g>`;
+  }).join('');
+
+  const style = `
+    .grow { transform-box: fill-box; transform-origin: left center; animation: grow 1s cubic-bezier(.2,.7,.2,1) both; }
+    @keyframes grow { from { transform: scaleX(0); } }`;
+  const body = `<rect x="1" y="1" width="${W - 2}" height="${H - 2}" rx="28" fill="${t.surface}" stroke="${t.line}" stroke-width="2"/>
+<path d="M600 48 V${H - 48}" stroke="${t.line}" stroke-width="2"/>
+${text('Languages', { font: F.heading, size: 32, x: leftX, y: 74, fill: t.text })}
+${text('Tools', { font: F.heading, size: 32, x: rightX, y: 74, fill: t.text })}
+<clipPath id="bar"><rect x="${leftX}" y="${barY}" width="${colW}" height="${barH}" rx="${barH / 2}"/></clipPath>
+<rect x="${leftX}" y="${barY}" width="${colW}" height="${barH}" rx="${barH / 2}" fill="${t.track}"/>
 <g clip-path="url(#bar)">${segs}</g>
-${rows}`;
-  return svg(W, H, `Languages: ${langs.map((l) => `${l.name} ${l.pct.toFixed(1)}%`).join(', ')}`, cardStyle, body);
-}
-
-function stackCard(stack, theme) {
-  const t = THEMES[theme], W = 480, H = 328;
-  const cols = 6, tile = 54, gap = (W - 56 - cols * tile) / (cols - 1), rowH = 80, top = 78;
-  const tiles = stack.map((s, i) => {
-    const x = 28 + (i % cols) * (tile + gap), y = top + Math.floor(i / cols) * rowH;
-    let size = 12;
-    while (measure(s.title, F.medium, size) > tile + gap - 4 && size > 9) size -= 0.5;
-    const scale = 26 / 24;
-    return `<g class="up" style="animation-delay:${(i * 0.04).toFixed(2)}s">
-<rect x="${x}" y="${y}" width="${tile}" height="${tile}" rx="14" fill="${t.bg}" stroke="${t.line}"/>
-<path transform="translate(${x + (tile - 26) / 2} ${y + (tile - 26) / 2}) scale(${scale.toFixed(4)})" d="${s.path}" fill="${t.text}"/>
-${text(s.title, { font: F.medium, size, x: x + tile / 2, y: y + tile + 17, fill: t.muted, anchor: 'middle' })}</g>`;
-  }).join('');
-  const body = `${cardFrame(W, H, t)}
-${cardHead(W, 'Tech stack', 'tools I use most', t)}
+${legend}
 ${tiles}`;
-  return svg(W, H, `Tech stack: ${stack.map((s) => s.title).join(', ')}`, cardStyle, body);
-}
-
-function featuredCard(entry, repo, langColor, theme) {
-  const t = THEMES[theme], W = 480, H = 172;
-  const desc = wrap(entry.blurb ?? repo.description ?? '', F.body, 15, W - 56, 2);
-  const lang = repo.primaryLanguage?.name;
-  const star = (x, y, r) => {
-    const pts = Array.from({ length: 10 }, (_, i) => {
-      const a = (Math.PI / 5) * i - Math.PI / 2, rr = i % 2 ? r * 0.45 : r;
-      return `${(x + rr * Math.cos(a)).toFixed(2)},${(y + rr * Math.sin(a)).toFixed(2)}`;
-    });
-    return `<polygon points="${pts.join(' ')}" fill="${t.muted}" stroke="${t.muted}" stroke-width="1.2" stroke-linejoin="round"/>`;
-  };
-  const langW = lang ? measure(lang, F.medium, 13) : 0;
-  const starX = lang ? 28 + 18 + langW + 22 : 28;
-  const body = `${cardFrame(W, H, t)}
-<rect x="30" y="30" width="12" height="12" rx="3" fill="${t.accent}" transform="rotate(45 36 36)"/>
-${text(repo.name, { font: F.heading, size: 24, x: 56, y: 45, fill: t.text })}
-<path d="M${W - 44} 40 l10 -10 m-7 0 h7 v7" fill="none" stroke="${t.muted}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-${desc.map((l, i) => text(l, { font: F.body, size: 15, x: 28, y: 84 + i * 23, fill: t.muted })).join('')}
-${lang ? `<circle cx="34" cy="${H - 33}" r="6" fill="${langColor}"/>${text(lang, { font: F.medium, size: 13, x: 46, y: H - 28, fill: t.text })}` : ''}
-${star(starX + 6, H - 33, 7)}${text(String(repo.stars), { font: F.mono, size: 13, x: starX + 18, y: H - 28, fill: t.text })}`;
-  return svg(W, H, `${repo.name}: ${desc.join(' ')}`, '', body);
+  const summary = `Languages: ${langs.map((l) => `${l.name} ${l.pct.toFixed(1)}%`).join(', ')}. Tools: ${stack.slice(0, cols * 2).map((s) => s.title).join(', ')}.`;
+  return svg(W, H, summary, style, body);
 }
 
 // ---------------------------------------------------------------- main
@@ -533,29 +442,26 @@ async function main() {
 
   const langs = rankLanguages(repos);
   const stack = detectStack(repos);
-  const counted = repos.filter((r) => !config.languages.ignoreRepos.includes(r.name)).length;
 
   mkdirSync(OUT, { recursive: true });
+  const written = new Set();
   const write = (name, content) => {
     writeFileSync(path.join(OUT, name), content);
-    console.log(`${name.padEnd(28)} ${(Buffer.byteLength(content) / 1024).toFixed(1)} KB`);
+    written.add(name);
+    console.log(`${name.padEnd(22)} ${(Buffer.byteLength(content) / 1024).toFixed(1)} KB`);
   };
   write('header.svg', header());
-  write('footer.svg', footer());
-  for (const link of config.links) write(`link-${link.id}.svg`, linkChip(link));
-  for (const theme of Object.keys(THEMES)) {
-    write(`languages-${theme}.svg`, languagesCard(langs, counted, theme));
-    write(`stack-${theme}.svg`, stackCard(stack, theme));
-    for (const entry of config.featured) {
-      const repo = repos.find((r) => r.name === entry.repo);
-      if (!repo) throw new Error(`Featured repo "${entry.repo}" is not a public, non-fork repo of ${config.login}.`);
-      const i = langs.findIndex((l) => l.name === repo.primaryLanguage?.name);
-      const color = repo.primaryLanguage ? langColor(theme, repo.primaryLanguage.name, Math.max(i, 0)) : THEMES[theme].muted;
-      write(`featured-${entry.repo}-${theme}.svg`, featuredCard(entry, repo, color, theme));
+  for (const theme of Object.keys(THEMES)) write(`toolbox-${theme}.svg`, toolboxCard(langs, stack, theme));
+
+  // Drop graphics from older layouts so assets/ only holds what the README uses.
+  for (const file of readdirSync(OUT)) {
+    if (file.endsWith('.svg') && !written.has(file)) {
+      unlinkSync(path.join(OUT, file));
+      console.log(`${file.padEnd(22)} removed`);
     }
   }
   console.log(`\nLanguages: ${langs.map((l) => `${l.name} ${l.pct.toFixed(1)}%`).join(', ')}`);
-  console.log(`Stack: ${stack.map((s) => `${s.slug}(${s.repos})`).join(', ')}`);
+  console.log(`Tools: ${stack.map((s) => `${s.slug}(${s.repos})`).join(', ')}`);
 }
 
 main().catch((err) => { console.error(err); process.exit(1); });

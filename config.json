@@ -4,51 +4,14 @@
   "handle": "~/tangheng05",
   "roles": [
     "Software engineer",
-    "I turn ideas into real products",
-    "Based in Cambodia"
+    "Based in Cambodia",
+    "Now building CheckSen"
   ],
   "chat": {
     "question": "So, what do you do?",
     "answerTitle": "I build products, end to end",
-    "answer": "From the systems behind the scenes to the apps people use every day."
+    "answer": "Simple on the surface, solid underneath."
   },
-  "footer": {
-    "title": "Thanks for stopping by.",
-    "subtitle": "heng.horizxon.tech  ·  Cambodia"
-  },
-  "links": [
-    {
-      "id": "website",
-      "text": "heng.horizxon.tech",
-      "url": "https://heng.horizxon.tech",
-      "icon": "globe"
-    },
-    {
-      "id": "now",
-      "label": "Now building",
-      "text": "CheckSen",
-      "url": "https://checksen.horizxon.tech",
-      "icon": "live"
-    }
-  ],
-  "featured": [
-    {
-      "repo": "checksen",
-      "blurb": "Telegram bot that checks messages, links, KHQR codes and screenshots for scams, with replies in Khmer."
-    },
-    {
-      "repo": "khqr-rs",
-      "blurb": "Rust implementation of KHQR, Cambodia's Bakong payment QR standard."
-    },
-    {
-      "repo": "dual-rail",
-      "blurb": "Stripe and Bakong KHQR checkout on one double-entry ledger, in Rust."
-    },
-    {
-      "repo": "storage-api",
-      "blurb": "Resumable media upload and storage API with tus uploads, media processing and content-addressed publishing."
-    }
-  ],
   "languages": {
     "ignore": [
       "HTML",
@@ -65,7 +28,7 @@
       "tangheng05",
       "homebrew-tap"
     ],
-    "max": 7,
+    "max": 5,
     "halfLifeYears": 2
   },
   "stack": {
@@ -77,6 +40,6 @@
     "ignoreRepos": [
       "tangheng05"
     ],
-    "max": 18
+    "max": 14
   }
 }
