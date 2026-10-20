@@ -395,6 +395,13 @@ ${a.lines.map((l, i) => text(l, { font: F.body, size: bodySize, x: aX + pad, y: 
     }).join('');
   }
 
+  // Role lines take turns: each holds for `roleHold` seconds with a slow fade.
+  const roleHold = 6, roleFade = 0.8, roleCycle = roleHold * roleLines.length;
+  const rp = (sec) => `${((sec / roleCycle) * 100).toFixed(2)}%`;
+  const roleStyle = `.role { opacity: 0; animation: role ${roleCycle}s ease-in-out infinite both; } .r0 { opacity: 1; }`
+    + roleLines.map((_, i) => ` .r${i} { animation-delay: ${(0.24 + i * roleHold).toFixed(2)}s; }`).join('')
+    + ` @keyframes role { 0% { opacity: 0; transform: translateY(8px); } ${rp(roleFade)}, ${rp(roleHold - roleFade)} { opacity: 1; transform: none; } ${rp(roleHold)}, 100% { opacity: 0; transform: translateY(-8px); } }`;
+
   // One orchestrated moment (the chat), plus the role line. Everything else is still.
   const style = `
     .drift { animation: drift 90s linear infinite; }
@@ -404,9 +411,7 @@ ${a.lines.map((l, i) => text(l, { font: F.body, size: bodySize, x: aX + pad, y: 
     @keyframes up { from { opacity: 0; transform: translateY(14px); } }
     .caret { animation: blink 1.1s steps(1) 4; }
     @keyframes blink { 50% { opacity: 0; } }
-    .role { opacity: 0; animation: role 12s ease-in-out infinite both; }
-    .r0 { opacity: 1; animation-delay: .24s; } .r1 { animation-delay: 4.24s; } .r2 { animation-delay: 8.24s; }
-    @keyframes role { 0% { opacity: 0; transform: translateY(8px); } 4%, 29% { opacity: 1; transform: none; } 33%, 100% { opacity: 0; transform: translateY(-8px); } }
+    ${roleStyle}
     .pop { transform-box: fill-box; animation: pop .55s cubic-bezier(.2,.9,.3,1.15) both; }
     .q { transform-origin: right bottom; animation-delay: .9s; }
     @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.95); } }
