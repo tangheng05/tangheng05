@@ -5,8 +5,23 @@
   "roles": [
     "Software engineer",
     "Based in Cambodia",
-    "Now building CheckSen"
+    "Now building {building}"
   ],
+  "building": {
+    "exclude": [
+      "tangheng05",
+      "homebrew-tap"
+    ],
+    "names": {
+      "checksen": "CheckSen",
+      "khqr-rs": "khqr-rs",
+      "dual-rail": "Dual Rail",
+      "storage-api": "Storage API",
+      "clawdmeter": "Clawdmeter",
+      "clippeek": "ClipPeek",
+      "macpeek": "MacPeek"
+    }
+  },
   "chat": {
     "question": "So, what do you do?",
     "answerTitle": "I build products, end to end",

@@ -1,4 +1,4 @@
-<p><a href="https://heng.horizxon.tech"><img src="assets/header.svg" width="100%" alt="Tang Heng. Software engineer based in Cambodia, now building CheckSen. I build products, end to end: simple on the surface, solid underneath." /></a></p>
+<p><a href="https://heng.horizxon.tech"><img src="assets/header.svg" width="100%" alt="Tang Heng. Software engineer based in Cambodia. I build products, end to end: simple on the surface, solid underneath." /></a></p>
 
 <p><picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/toolbox-dark.svg" />

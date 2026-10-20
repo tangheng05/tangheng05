@@ -313,39 +313,53 @@ function detectStack(repos) {
 // ---------------------------------------------------------------- header
 
 // The banner shows at roughly 0.47x on a profile page, so no text here is set
-// below 22px; that keeps it at about 11px on screen.
-function header() {
-  const W = 1200, H = 300, B = BANNER;
-  const roles = config.roles.map((r, i) => `<g class="role r${i}">${text(r, { font: F.medium, size: 28, x: 72, y: 236, fill: B.muted })}</g>`).join('');
-  const handleW = measure(config.handle, F.mono, 22);
-  const nameSize = 94;
+// below 20px; that keeps it at about 9-10px on screen.
+// The project I'm on right now: my most recently pushed public repo, minus the
+// ones listed in config.building.exclude (this profile repo, the Homebrew tap…).
+function currentProject(repos) {
+  const { exclude = [], names = {} } = config.building;
+  const latest = repos
+    .filter((r) => r.pushedAt && !exclude.includes(r.name))
+    .sort((a, b) => Date.parse(b.pushedAt) - Date.parse(a.pushedAt))[0];
+  return latest ? (names[latest.name] ?? latest.name) : null;
+}
+
+function header(building) {
+  // A role line can say {building}; drop that line if no project was found.
+  const roleLines = config.roles
+    .filter((r) => building || !r.includes('{building}'))
+    .map((r) => r.replace('{building}', building));
+  const W = 1200, H = 260, B = BANNER;
+  const roles = roleLines.map((r, i) => `<g class="role r${i}">${text(r, { font: F.medium, size: 24, x: 72, y: 200, fill: B.muted })}</g>`).join('');
+  const handleW = measure(config.handle, F.mono, 20);
+  const nameSize = 76;
 
   // Chat bubbles on the right, in the style of the CheckSen banner.
   const right = 1136;
-  const qSize = 24, qW = measure(config.chat.question, F.medium, qSize);
-  const q = { w: qW + 52, h: 58 };
+  const qSize = 21, qW = measure(config.chat.question, F.medium, qSize);
+  const q = { w: qW + 48, h: 52 };
   const qx = right - q.w;
 
-  const titleSize = 26, bodySize = 24, lineH = 34, pad = 28, checkW = 38;
+  const titleSize = 22, bodySize = 21, lineH = 30, pad = 24, checkW = 32;
   const titleW = checkW + measure(config.chat.answerTitle, F.heading, titleSize);
   const bodyW = measure(config.chat.answer, F.body, bodySize);
   // Keep the answer on one line when it fits beside the name; otherwise wrap it.
   const aW = Math.min(Math.max(titleW, bodyW), 500) + pad * 2;
   const lines = wrap(config.chat.answer, F.body, bodySize, aW - pad * 2, 2);
-  const aH = 50 + lines.length * lineH + 14;
-  const qy = Math.round((H - (q.h + 16 + aH)) / 2);  // centre the conversation vertically
-  const aX = right - aW - 24, aY = qy + q.h + 16;
+  const aH = 42 + lines.length * lineH + 20;
+  const qy = Math.round((H - (q.h + 14 + aH)) / 2);  // centre the conversation vertically
+  const aX = right - aW - 24, aY = qy + q.h + 14;
   const nameRight = 68 + measure(config.name, F.display, nameSize, -0.02);
   if (nameRight > aX - 40) throw new Error(`Header: the name and the answer bubble overlap (${nameRight.toFixed(0)} > ${aX - 40}).`);
   if (aY + aH > H - 24) throw new Error('Header: the answer bubble is too tall; shorten chat.answer.');
 
   const bubble = (x, y, w, h, tail) => {
     // Rounded rect with one tighter corner, like a chat bubble's tail.
-    const r = 22, t = 6;
+    const r = 20, t = 6;
     const [tl, tr, br, bl] = tail === 'right' ? [r, r, t, r] : [r, r, r, t];
     return `M${x + tl},${y} H${x + w - tr} Q${x + w},${y} ${x + w},${y + tr} V${y + h - br} Q${x + w},${y + h} ${x + w - br},${y + h} H${x + bl} Q${x},${y + h} ${x},${y + h - bl} V${y + tl} Q${x},${y} ${x + tl},${y} Z`;
   };
-  const answerLines = lines.map((l, i) => text(l, { font: F.body, size: bodySize, x: aX + pad, y: aY + 50 + (i + 1) * lineH - 4, fill: B.ink })).join('');
+  const answerLines = lines.map((l, i) => text(l, { font: F.body, size: bodySize, x: aX + pad, y: aY + 42 + (i + 1) * lineH, fill: B.ink })).join('');
 
   // One orchestrated moment (the chat), plus the role line. Everything else is still.
   const style = `
@@ -381,28 +395,28 @@ ${diamondPattern('dia', B.diamond)}
 <rect width="${W}" height="${H}" fill="url(#fade)"/>
 <rect width="${W}" height="${H}" fill="url(#g1)"/>
 </g>
-<g class="up">${text(config.handle, { font: F.mono, size: 22, x: 72, y: 88, fill: B.mint })}<rect class="caret" x="${72 + handleW + 5}" y="70" width="11" height="22" rx="2" fill="${B.mint}"/></g>
-<g class="up d1">${text(config.name, { font: F.display, size: nameSize, x: 68, y: 182, fill: B.cream, ls: -0.02 })}</g>
+<g class="up">${text(config.handle, { font: F.mono, size: 20, x: 72, y: 76, fill: B.mint })}<rect class="caret" x="${72 + handleW + 5}" y="59" width="10" height="20" rx="2" fill="${B.mint}"/></g>
+<g class="up d1">${text(config.name, { font: F.display, size: nameSize, x: 69, y: 156, fill: B.cream, ls: -0.02 })}</g>
 <g class="up d2">${roles}</g>
 <path class="pop q" d="${bubble(qx, qy, q.w, q.h, 'right')}" fill="${B.bubbleIn}"/>
-<g class="pop q">${text(config.chat.question, { font: F.medium, size: qSize, x: qx + 26, y: qy + 37, fill: B.ink })}</g>
-<g class="typing"><path d="${bubble(aX, aY, 96, 54, 'left')}" fill="${B.bubbleOut}"/><g>${[0, 1, 2].map((i) => `<circle class="dot" cx="${aX + 30 + i * 18}" cy="${aY + 27}" r="6" fill="${B.teal}"/>`).join('')}</g></g>
+<g class="pop q">${text(config.chat.question, { font: F.medium, size: qSize, x: qx + 24, y: qy + 33, fill: B.ink })}</g>
+<g class="typing"><path d="${bubble(aX, aY, 88, 48, 'left')}" fill="${B.bubbleOut}"/><g>${[0, 1, 2].map((i) => `<circle class="dot" cx="${aX + 28 + i * 16}" cy="${aY + 24}" r="5" fill="${B.teal}"/>`).join('')}</g></g>
 <g class="pop a"><path d="${bubble(aX, aY, aW, aH, 'left')}" fill="${B.bubbleOut}"/>
-<circle cx="${aX + pad + 11}" cy="${aY + 38}" r="11" fill="${B.mint}"/><path d="M${aX + pad + 6} ${aY + 38.5} l4 4 l7 -8" fill="none" stroke="${B.ink}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-${text(config.chat.answerTitle, { font: F.heading, size: titleSize, x: aX + pad + checkW, y: aY + 47, fill: B.teal })}
+<circle cx="${aX + pad + 10}" cy="${aY + 35}" r="10" fill="${B.mint}"/><path d="M${aX + pad + 5.5} ${aY + 35.5} l3.5 3.5 l6.5 -7.5" fill="none" stroke="${B.ink}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+${text(config.chat.answerTitle, { font: F.heading, size: titleSize, x: aX + pad + checkW, y: aY + 43, fill: B.teal })}
 ${answerLines}</g>`;
-  return svg(W, H, `${config.name}. ${config.roles.join('. ')}. ${config.chat.answerTitle}. ${config.chat.answer}`, style, body);
+  return svg(W, H, `${config.name}. ${roleLines.join('. ')}. ${config.chat.answerTitle}. ${config.chat.answer}`, style, body);
 }
 
 // ---------------------------------------------------------------- toolbox
 
 // Languages on the left, tools on the right, in one card. Shown at ~0.47x like
-// the header, so text stays at 24px or more in this canvas.
+// the header, so text stays at 20px or more in this canvas.
 function toolboxCard(langs, stack, theme) {
-  const t = THEMES[theme], W = 1200, H = 300, colW = 504, leftX = 48, rightX = 648;
+  const t = THEMES[theme], W = 1200, H = 260, colW = 504, leftX = 48, rightX = 648;
   const colorOf = (i, name) => langColor(theme, name, i);
 
-  const barY = 104, barH = 18;
+  const barY = 90, barH = 14;
   let x = leftX;
   const segs = langs.map((l, i) => {
     const w = (l.pct / 100) * colW;
@@ -412,16 +426,16 @@ function toolboxCard(langs, stack, theme) {
   }).join('');
   const legendColW = (colW - 24) / 2;
   const legend = langs.slice(0, 6).map((l, i) => {
-    const cx = leftX + (i % 2) * (legendColW + 24), y = 176 + Math.floor(i / 2) * 42;
-    return `<circle cx="${cx + 7}" cy="${y - 8}" r="7" fill="${colorOf(i, l.name)}"/>
-${text(l.name, { font: F.medium, size: 25, x: cx + 26, y, fill: t.text })}
-${text(`${l.pct.toFixed(1)}%`, { font: F.mono, size: 23, x: cx + 26 + measure(l.name, F.medium, 25) + 12, y, fill: t.muted })}`;
+    const cx = leftX + (i % 2) * (legendColW + 24), y = 146 + Math.floor(i / 2) * 36;
+    return `<circle cx="${cx + 6}" cy="${y - 7}" r="6" fill="${colorOf(i, l.name)}"/>
+${text(l.name, { font: F.medium, size: 22, x: cx + 22, y, fill: t.text })}
+${text(`${l.pct.toFixed(1)}%`, { font: F.mono, size: 20, x: cx + 22 + measure(l.name, F.medium, 22) + 10, y, fill: t.muted })}`;
   }).join('');
 
-  const cols = 7, tile = 60, gap = (colW - cols * tile) / (cols - 1), iconSize = 30;
+  const cols = 7, tile = 54, gap = (colW - cols * tile) / (cols - 1), iconSize = 26;
   const tiles = stack.slice(0, cols * 2).map((s, i) => {
-    const tx = rightX + (i % cols) * (tile + gap), ty = 104 + Math.floor(i / cols) * (tile + 18);
-    return `<g><title>${esc(s.title)}</title><rect x="${tx}" y="${ty}" width="${tile}" height="${tile}" rx="16" fill="${t.bg}" stroke="${t.line}" stroke-width="2"/>
+    const tx = rightX + (i % cols) * (tile + gap), ty = 88 + Math.floor(i / cols) * (tile + 16);
+    return `<g><title>${esc(s.title)}</title><rect x="${tx}" y="${ty}" width="${tile}" height="${tile}" rx="14" fill="${t.bg}" stroke="${t.line}" stroke-width="2"/>
 <path transform="translate(${tx + (tile - iconSize) / 2} ${ty + (tile - iconSize) / 2}) scale(${(iconSize / 24).toFixed(4)})" d="${s.path}" fill="${t.text}"/></g>`;
   }).join('');
 
@@ -429,9 +443,9 @@ ${text(`${l.pct.toFixed(1)}%`, { font: F.mono, size: 23, x: cx + 26 + measure(l.
     .grow { transform-box: fill-box; transform-origin: left center; animation: grow 1s cubic-bezier(.2,.7,.2,1) both; }
     @keyframes grow { from { transform: scaleX(0); } }`;
   const body = `<rect x="1" y="1" width="${W - 2}" height="${H - 2}" rx="28" fill="${t.surface}" stroke="${t.line}" stroke-width="2"/>
-<path d="M600 48 V${H - 48}" stroke="${t.line}" stroke-width="2"/>
-${text('Languages', { font: F.heading, size: 32, x: leftX, y: 74, fill: t.text })}
-${text('Tools', { font: F.heading, size: 32, x: rightX, y: 74, fill: t.text })}
+<path d="M600 44 V${H - 44}" stroke="${t.line}" stroke-width="2"/>
+${text('Languages', { font: F.heading, size: 26, x: leftX, y: 66, fill: t.text })}
+${text('Tools', { font: F.heading, size: 26, x: rightX, y: 66, fill: t.text })}
 <clipPath id="bar"><rect x="${leftX}" y="${barY}" width="${colW}" height="${barH}" rx="${barH / 2}"/></clipPath>
 <rect x="${leftX}" y="${barY}" width="${colW}" height="${barH}" rx="${barH / 2}" fill="${t.track}"/>
 <g clip-path="url(#bar)">${segs}</g>
@@ -464,7 +478,8 @@ async function main() {
     written.add(name);
     console.log(`${name.padEnd(22)} ${(Buffer.byteLength(content) / 1024).toFixed(1)} KB`);
   };
-  write('header.svg', header());
+  const building = currentProject(repos);
+  write('header.svg', header(building));
   for (const theme of Object.keys(THEMES)) write(`toolbox-${theme}.svg`, toolboxCard(langs, stack, theme));
 
   // Drop graphics from older layouts so assets/ only holds what the README uses.
@@ -474,7 +489,8 @@ async function main() {
       console.log(`${file.padEnd(22)} removed`);
     }
   }
-  console.log(`\nLanguages: ${langs.map((l) => `${l.name} ${l.pct.toFixed(1)}%`).join(', ')}`);
+  console.log(`\nNow building: ${building}`);
+  console.log(`Languages: ${langs.map((l) => `${l.name} ${l.pct.toFixed(1)}%`).join(', ')}`);
   console.log(`Tools: ${stack.map((s) => `${s.slug}(${s.repos})`).join(', ')}`);
 }
 
