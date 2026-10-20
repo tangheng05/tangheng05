@@ -340,18 +340,22 @@ function header(building) {
   const q = { w: qW + 48, h: 52 };
   const qx = right - q.w;
 
-  const titleSize = 22, bodySize = 21, lineH = 30, pad = 24, checkW = 32;
-  const titleW = checkW + measure(config.chat.answerTitle, F.heading, titleSize);
-  const bodyW = measure(config.chat.answer, F.body, bodySize);
-  // Keep the answer on one line when it fits beside the name; otherwise wrap it.
-  const aW = Math.min(Math.max(titleW, bodyW), 500) + pad * 2;
-  const lines = wrap(config.chat.answer, F.body, bodySize, aW - pad * 2, 2);
-  const aH = 42 + lines.length * lineH + 20;
-  const qy = Math.round((H - (q.h + 14 + aH)) / 2);  // centre the conversation vertically
-  const aX = right - aW - 24, aY = qy + q.h + 14;
+  // Each answer gets its own bubble; with more than one, they take turns.
+  const titleSize = 22, bodySize = 21, lineH = 30, pad = 24, iconW = 32;
+  const answers = config.chat.answers.map((a) => {
+    const titleW = iconW + measure(a.title, F.heading, titleSize);
+    const bodyW = measure(a.body, F.body, bodySize);
+    // Keep the answer on one line when it fits beside the name; otherwise wrap it.
+    const w = Math.min(Math.max(titleW, bodyW), 500) + pad * 2;
+    const lines = wrap(a.body, F.body, bodySize, w - pad * 2, 2);
+    return { ...a, w, lines, h: 42 + lines.length * lineH + 20 };
+  });
+  const aMaxW = Math.max(...answers.map((a) => a.w)), aMaxH = Math.max(...answers.map((a) => a.h));
+  const qy = Math.round((H - (q.h + 14 + aMaxH)) / 2);  // centre the conversation vertically
+  const aX = right - aMaxW - 24, aY = qy + q.h + 14;
   const nameRight = 68 + measure(config.name, F.display, nameSize, -0.02);
   if (nameRight > aX - 40) throw new Error(`Header: the name and the answer bubble overlap (${nameRight.toFixed(0)} > ${aX - 40}).`);
-  if (aY + aH > H - 24) throw new Error('Header: the answer bubble is too tall; shorten chat.answer.');
+  if (aY + aMaxH > H - 24) throw new Error('Header: an answer bubble is too tall; shorten its body.');
 
   const bubble = (x, y, w, h, tail) => {
     // Rounded rect with one tighter corner, like a chat bubble's tail.
@@ -359,7 +363,37 @@ function header(building) {
     const [tl, tr, br, bl] = tail === 'right' ? [r, r, t, r] : [r, r, r, t];
     return `M${x + tl},${y} H${x + w - tr} Q${x + w},${y} ${x + w},${y + tr} V${y + h - br} Q${x + w},${y + h} ${x + w - br},${y + h} H${x + bl} Q${x},${y + h} ${x},${y + h - bl} V${y + tl} Q${x},${y} ${x + tl},${y} Z`;
   };
-  const answerLines = lines.map((l, i) => text(l, { font: F.body, size: bodySize, x: aX + pad, y: aY + 42 + (i + 1) * lineH, fill: B.ink })).join('');
+  const icon = (kind, cx, cy) => kind === 'spark'
+    ? `<path d="M${cx} ${cy - 6.5} Q${cx + 1.2} ${cy - 1.2} ${cx + 6.5} ${cy} Q${cx + 1.2} ${cy + 1.2} ${cx} ${cy + 6.5} Q${cx - 1.2} ${cy + 1.2} ${cx - 6.5} ${cy} Q${cx - 1.2} ${cy - 1.2} ${cx} ${cy - 6.5} Z" fill="${B.ink}"/>`
+    : `<path d="M${cx - 4.5} ${cy + 0.5} l3.5 3.5 l6.5 -7.5" fill="none" stroke="${B.ink}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const answerMarkup = answers.map((a, k) => `<g class="ans ans${k}"><path d="${bubble(aX, aY, a.w, a.h, 'left')}" fill="${B.bubbleOut}"/>
+<circle cx="${aX + pad + 10}" cy="${aY + 35}" r="10" fill="${B.mint}"/>${icon(a.icon, aX + pad + 10, aY + 35)}
+${text(a.title, { font: F.heading, size: titleSize, x: aX + pad + iconW, y: aY + 43, fill: B.teal })}
+${a.lines.map((l, i) => text(l, { font: F.body, size: bodySize, x: aX + pad, y: aY + 42 + (i + 1) * lineH, fill: B.ink })).join('')}</g>`).join('\n');
+
+  // The conversation: the question pops in, then dots type each answer in turn.
+  // With one answer it plays once and stays; with more it loops every `turn` seconds.
+  const start = 1.5, typing = 1.3, turn = 6, cycle = turn * answers.length;
+  const at = (sec) => `${((sec / cycle) * 100).toFixed(2)}%`;
+  let chatStyle;
+  if (answers.length === 1) {
+    chatStyle = `
+    .typing { opacity: 0; animation: typing ${typing}s ${start}s both; }
+    @keyframes typing { 0% { opacity: 0; } 12%, 88% { opacity: 1; } 100% { opacity: 0; } }
+    .ans0 { transform-box: fill-box; transform-origin: left bottom; animation: pop .55s cubic-bezier(.2,.9,.3,1.15) ${start + typing}s both; }`;
+  } else {
+    const typingFrames = answers.map((_, k) => `${at(k * turn + 0.15)}, ${at(k * turn + typing - 0.1)} { opacity: 1; } ${at(k * turn + typing)} { opacity: 0; }`).join(' ');
+    chatStyle = `
+    .typing { opacity: 0; animation: typing ${cycle}s linear ${start}s infinite forwards; }
+    @keyframes typing { 0% { opacity: 0; } ${typingFrames} 100% { opacity: 0; } }
+    .ans { opacity: 0; transform-box: fill-box; transform-origin: left bottom; animation: ${cycle}s ease-out ${start}s infinite both; }
+    .ans0 { opacity: 1; }` + answers.map((_, k) => {
+      const s0 = k * turn + typing, e = (k + 1) * turn;
+      return `
+    .ans${k} { animation-name: ans${k}; }
+    @keyframes ans${k} { 0%, ${at(s0)} { opacity: 0; transform: translateY(10px) scale(.96); } ${at(s0 + 0.45)}, ${at(e - 0.4)} { opacity: 1; transform: none; } ${at(e)}, 100% { opacity: 0; transform: translateY(-6px); } }`;
+    }).join('');
+  }
 
   // One orchestrated moment (the chat), plus the role line. Everything else is still.
   const style = `
@@ -375,10 +409,8 @@ function header(building) {
     @keyframes role { 0% { opacity: 0; transform: translateY(8px); } 4%, 29% { opacity: 1; transform: none; } 33%, 100% { opacity: 0; transform: translateY(-8px); } }
     .pop { transform-box: fill-box; animation: pop .55s cubic-bezier(.2,.9,.3,1.15) both; }
     .q { transform-origin: right bottom; animation-delay: .9s; }
-    .a { transform-origin: left bottom; animation-delay: 2.9s; }
     @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.95); } }
-    .typing { opacity: 0; animation: typing 1.4s 1.5s both; }
-    @keyframes typing { 0% { opacity: 0; } 15%, 85% { opacity: 1; } 100% { opacity: 0; } }
+    ${chatStyle}
     .dot { transform-box: fill-box; transform-origin: center; animation: bounce .9s ease-in-out infinite; }
     .dot:nth-child(2) { animation-delay: .15s; } .dot:nth-child(3) { animation-delay: .3s; }
     @keyframes bounce { 0%, 100% { transform: translateY(0); opacity: .45; } 50% { transform: translateY(-4px); opacity: 1; } }`;
@@ -401,11 +433,8 @@ ${diamondPattern('dia', B.diamond)}
 <path class="pop q" d="${bubble(qx, qy, q.w, q.h, 'right')}" fill="${B.bubbleIn}"/>
 <g class="pop q">${text(config.chat.question, { font: F.medium, size: qSize, x: qx + 24, y: qy + 33, fill: B.ink })}</g>
 <g class="typing"><path d="${bubble(aX, aY, 88, 48, 'left')}" fill="${B.bubbleOut}"/><g>${[0, 1, 2].map((i) => `<circle class="dot" cx="${aX + 28 + i * 16}" cy="${aY + 24}" r="5" fill="${B.teal}"/>`).join('')}</g></g>
-<g class="pop a"><path d="${bubble(aX, aY, aW, aH, 'left')}" fill="${B.bubbleOut}"/>
-<circle cx="${aX + pad + 10}" cy="${aY + 35}" r="10" fill="${B.mint}"/><path d="M${aX + pad + 5.5} ${aY + 35.5} l3.5 3.5 l6.5 -7.5" fill="none" stroke="${B.ink}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-${text(config.chat.answerTitle, { font: F.heading, size: titleSize, x: aX + pad + checkW, y: aY + 43, fill: B.teal })}
-${answerLines}</g>`;
-  return svg(W, H, `${config.name}. ${roleLines.join('. ')}. ${config.chat.answerTitle}. ${config.chat.answer}`, style, body);
+${answerMarkup}`;
+  return svg(W, H, `${config.name}. ${roleLines.join('. ')}. ${answers.map((a) => `${a.title} ${a.body}`).join(' ')}`, style, body);
 }
 
 // ---------------------------------------------------------------- toolbox
@@ -432,11 +461,19 @@ ${text(l.name, { font: F.medium, size: 22, x: cx + 22, y, fill: t.text })}
 ${text(`${l.pct.toFixed(1)}%`, { font: F.mono, size: 20, x: cx + 22 + measure(l.name, F.medium, 22) + 10, y, fill: t.muted })}`;
   }).join('');
 
-  const cols = 7, tile = 54, gap = (colW - cols * tile) / (cols - 1), iconSize = 26;
-  const tiles = stack.slice(0, cols * 2).map((s, i) => {
-    const tx = rightX + (i % cols) * (tile + gap), ty = 88 + Math.floor(i / cols) * (tile + 16);
-    return `<g><title>${esc(s.title)}</title><rect x="${tx}" y="${ty}" width="${tile}" height="${tile}" rx="14" fill="${t.bg}" stroke="${t.line}" stroke-width="2"/>
-<path transform="translate(${tx + (tile - iconSize) / 2} ${ty + (tile - iconSize) / 2}) scale(${(iconSize / 24).toFixed(4)})" d="${s.path}" fill="${t.text}"/></g>`;
+  // Tools are listed as icon + name, 3 across and 4 down, aligned with the
+  // language rows. Languages already shown on the left are skipped.
+  const shown = new Set(langs.map((l) => l.name.toLowerCase()));
+  const short = { 'Tailwind CSS': 'Tailwind', 'Google Gemini': 'Gemini', 'GNU Bash': 'Bash' };
+  const tools = stack.filter((s) => !shown.has(s.title.toLowerCase())).slice(0, 12);
+  const toolColW = colW / 3, iconSize = 24;
+  const tiles = tools.map((s, i) => {
+    const tx = rightX + (i % 3) * toolColW, ty = 110 + Math.floor(i / 3) * 36;
+    const name = short[s.title] ?? s.title;
+    let size = 21;
+    while (measure(name, F.medium, size) > toolColW - iconSize - 22 && size > 17) size -= 0.5;
+    return `<path transform="translate(${tx} ${ty - 19}) scale(${(iconSize / 24).toFixed(4)})" d="${s.path}" fill="${t.text}"/>
+${text(name, { font: F.medium, size, x: tx + iconSize + 10, y: ty, fill: t.text })}`;
   }).join('');
 
   const style = `
@@ -451,7 +488,7 @@ ${text('Tools', { font: F.heading, size: 26, x: rightX, y: 66, fill: t.text })}
 <g clip-path="url(#bar)">${segs}</g>
 ${legend}
 ${tiles}`;
-  const summary = `Languages: ${langs.map((l) => `${l.name} ${l.pct.toFixed(1)}%`).join(', ')}. Tools: ${stack.slice(0, cols * 2).map((s) => s.title).join(', ')}.`;
+  const summary = `Languages: ${langs.map((l) => `${l.name} ${l.pct.toFixed(1)}%`).join(', ')}. Tools: ${tools.map((s) => s.title).join(', ')}.`;
   return svg(W, H, summary, style, body);
 }
 

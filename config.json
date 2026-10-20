@@ -24,8 +24,18 @@
   },
   "chat": {
     "question": "So, what do you do?",
-    "answerTitle": "I build products, end to end",
-    "answer": "Simple on the surface, solid underneath."
+    "answers": [
+      {
+        "title": "I build products, end to end",
+        "body": "Simple on the surface, solid underneath.",
+        "icon": "check"
+      },
+      {
+        "title": "Powered by coffee and curiosity",
+        "body": "Turning late nights into real products.",
+        "icon": "spark"
+      }
+    ]
   },
   "languages": {
     "ignore": [
@@ -55,6 +65,6 @@
     "ignoreRepos": [
       "tangheng05"
     ],
-    "max": 14
+    "max": 24
   }
 }
