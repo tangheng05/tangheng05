@@ -461,19 +461,22 @@ ${text(l.name, { font: F.medium, size: 22, x: cx + 22, y, fill: t.text })}
 ${text(`${l.pct.toFixed(1)}%`, { font: F.mono, size: 20, x: cx + 22 + measure(l.name, F.medium, 22) + 10, y, fill: t.muted })}`;
   }).join('');
 
-  // Tools are listed as icon + name, 3 across and 4 down, aligned with the
-  // language rows. Languages already shown on the left are skipped.
+  // Tools are listed as icon + name, 3 by 3, on the same rows as the language
+  // legend. Languages already shown on the left are skipped.
   const shown = new Set(langs.map((l) => l.name.toLowerCase()));
   const short = { 'Tailwind CSS': 'Tailwind', 'Google Gemini': 'Gemini', 'GNU Bash': 'Bash' };
-  const tools = stack.filter((s) => !shown.has(s.title.toLowerCase())).slice(0, 12);
-  const toolColW = colW / 3, iconSize = 24;
+  const tools = stack.filter((s) => !shown.has(s.title.toLowerCase())).slice(0, 9);
+  // One type size for every name; the three columns get their natural widths
+  // and share the leftover space as equal gaps.
+  const iconSize = 24, nameSize = 21;
+  const names = tools.map((s) => short[s.title] ?? s.title);
+  const colWidths = [0, 1, 2].map((c) => Math.max(0, ...names.filter((_, i) => i % 3 === c).map((n) => iconSize + 10 + measure(n, F.medium, nameSize))));
+  const colGap = (colW - colWidths.reduce((a, w) => a + w, 0)) / 2;
+  const colX = [rightX, rightX + colWidths[0] + colGap, rightX + colWidths[0] + colWidths[1] + colGap * 2];
   const tiles = tools.map((s, i) => {
-    const tx = rightX + (i % 3) * toolColW, ty = 110 + Math.floor(i / 3) * 36;
-    const name = short[s.title] ?? s.title;
-    let size = 21;
-    while (measure(name, F.medium, size) > toolColW - iconSize - 22 && size > 17) size -= 0.5;
+    const tx = colX[i % 3], ty = 146 + Math.floor(i / 3) * 36;
     return `<path transform="translate(${tx} ${ty - 19}) scale(${(iconSize / 24).toFixed(4)})" d="${s.path}" fill="${t.text}"/>
-${text(name, { font: F.medium, size, x: tx + iconSize + 10, y: ty, fill: t.text })}`;
+${text(names[i], { font: F.medium, size: nameSize, x: tx + iconSize + 10, y: ty, fill: t.text })}`;
   }).join('');
 
   const style = `
@@ -483,6 +486,7 @@ ${text(name, { font: F.medium, size, x: tx + iconSize + 10, y: ty, fill: t.text 
 <path d="M600 44 V${H - 44}" stroke="${t.line}" stroke-width="2"/>
 ${text('Languages', { font: F.heading, size: 26, x: leftX, y: 66, fill: t.text })}
 ${text('Tools', { font: F.heading, size: 26, x: rightX, y: 66, fill: t.text })}
+${text('What I build with', { font: F.mono, size: 20, x: rightX, y: 104, fill: t.muted })}
 <clipPath id="bar"><rect x="${leftX}" y="${barY}" width="${colW}" height="${barH}" rx="${barH / 2}"/></clipPath>
 <rect x="${leftX}" y="${barY}" width="${colW}" height="${barH}" rx="${barH / 2}" fill="${t.track}"/>
 <g clip-path="url(#bar)">${segs}</g>

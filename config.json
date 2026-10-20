@@ -59,7 +59,8 @@
   "stack": {
     "ignore": [
       "discord",
-      "telegram"
+      "telegram",
+      "gnubash"
     ],
     "always": [],
     "ignoreRepos": [
