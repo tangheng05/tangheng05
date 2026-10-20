@@ -1,0 +1,52 @@
+name: Refresh profile graphics
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "config.json"
+      - "scripts/**"
+      - ".github/workflows/profile.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: profile-graphics
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+
+      - name: Install
+        working-directory: scripts
+        run: npm ci
+
+      - name: Generate SVGs
+        working-directory: scripts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node generate.mjs
+
+      - name: Commit changes
+        run: |
+          git add assets
+          if git diff --cached --quiet; then
+            echo "Graphics are up to date."
+            exit 0
+          fi
+          git -c user.name="Tang Heng" -c user.email="76139625+tangheng05@users.noreply.github.com" \
+            commit -m "Refresh profile graphics"
+          git push

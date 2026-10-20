@@ -1,0 +1,62 @@
+{
+  "login": "tangheng05",
+  "name": "Tang Heng",
+  "handle": "~/tangheng05",
+  "roles": [
+    "Software engineer & founder",
+    "I turn ideas into real products",
+    "Based in Cambodia"
+  ],
+  "chat": {
+    "question": "So, what do you do?",
+    "answerTitle": "I build products, end to end",
+    "answer": "From the systems behind the scenes to the apps people use every day. Fast, secure and simple to use."
+  },
+  "footer": {
+    "title": "Thanks for stopping by.",
+    "subtitle": "heng.horizxon.tech  ·  Cambodia"
+  },
+  "featured": [
+    {
+      "repo": "checksen",
+      "blurb": "Telegram bot that checks messages, links, KHQR codes and screenshots for scams, with replies in Khmer."
+    },
+    {
+      "repo": "khqr-rs",
+      "blurb": "Rust implementation of KHQR, Cambodia's Bakong payment QR standard."
+    },
+    {
+      "repo": "dual-rail",
+      "blurb": "Stripe and Bakong KHQR checkout on one double-entry ledger, in Rust."
+    },
+    {
+      "repo": "storage-api",
+      "blurb": "Resumable media upload and storage API with tus uploads, media processing and content-addressed publishing."
+    }
+  ],
+  "languages": {
+    "ignore": [
+      "HTML",
+      "CSS",
+      "SCSS",
+      "Less",
+      "Dockerfile",
+      "Makefile",
+      "Procfile",
+      "Batchfile",
+      "Jupyter Notebook"
+    ],
+    "ignoreRepos": [
+      "tangheng05"
+    ],
+    "max": 7
+  },
+  "stack": {
+    "ignore": [],
+    "always": [],
+    "ignoreRepos": [
+      "tangheng05"
+    ],
+    "max": 18
+  }
+}
